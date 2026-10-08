@@ -3,18 +3,22 @@ import 'dart:ui';
 
 /// A small CPU-owned RGBA image that software renderers can write into.
 class SoftwareFramebuffer {
-  SoftwareFramebuffer({this.width = 320, this.height = 240})
-    : assert(width > 0),
-      assert(height > 0),
-      _pixels = Uint8List(width * height * 4);
+  SoftwareFramebuffer({
+    this.width = 320,
+    this.height = 240,
+    this.clearColor = const Color(0x00000000),
+  }) : assert(width > 0),
+       assert(height > 0),
+       _pixels = Uint8List(width * height * 4);
 
   final int width;
   final int height;
+  final Color clearColor;
   final Uint8List _pixels;
 
   /// Clears the whole image to [color] before drawing the next frame.
-  void clear([Color color = const Color(0x00000000)]) {
-    final int argb = color.toARGB32();
+  void clear() {
+    final int argb = clearColor.toARGB32();
     final int red = (argb >> 16) & 0xFF;
     final int green = (argb >> 8) & 0xFF;
     final int blue = argb & 0xFF;

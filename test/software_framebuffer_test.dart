@@ -30,10 +30,10 @@ void main() {
 
       framebuffer
         ..setPixel(0, 0, const Color(0xFFFFFFFF))
-        ..clear(const Color(0xFF010203));
+        ..clear();
 
-      expect(framebuffer.pixelAt(0, 0), const Color(0xFF010203));
-      expect(framebuffer.pixelAt(1, 1), const Color(0xFF010203));
+      expect(framebuffer.pixelAt(0, 0), const Color(0x00000000));
+      expect(framebuffer.pixelAt(1, 1), const Color(0x00000000));
     });
   });
 

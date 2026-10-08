@@ -6,8 +6,12 @@ import 'package:flutter_software_renderer/engine/game.dart';
 import 'package:flutter_software_renderer/engine/software_framebuffer.dart';
 
 class Engine extends ChangeNotifier {
-  Engine(this.game, {int width = 320, int height = 240})
-    : framebuffer = SoftwareFramebuffer(width: width, height: height);
+  Engine(this.game)
+    : framebuffer = SoftwareFramebuffer(
+        width: game.width,
+        height: game.height,
+        clearColor: game.clearColor,
+      );
 
   final Game game;
   final SoftwareFramebuffer framebuffer;
@@ -17,6 +21,8 @@ class Engine extends ChangeNotifier {
   bool _frameRequested = false;
   bool _disposed = false;
   Object? renderError;
+
+  Color get clearColor => game.clearColor;
 
   ui.Image? get image => _image;
 
@@ -29,8 +35,6 @@ class Engine extends ChangeNotifier {
     game.update(deltaTime);
     _requestFrame();
   }
-
-  Color get backgroundColor => game.backgroundColor;
 
   void _requestFrame() {
     if (_disposed) return;
@@ -55,9 +59,7 @@ class Engine extends ChangeNotifier {
     ui.ImageDescriptor? descriptor;
     ui.Codec? codec;
     try {
-      buffer = await ui.ImmutableBuffer.fromUint8List(
-        pixels,
-      );
+      buffer = await ui.ImmutableBuffer.fromUint8List(pixels);
       descriptor = ui.ImageDescriptor.raw(
         buffer,
         width: framebuffer.width,

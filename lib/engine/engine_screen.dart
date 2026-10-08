@@ -38,7 +38,7 @@ class _EngineScreenState extends State<EngineScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _engine.backgroundColor,
+      backgroundColor: _engine.clearColor,
       body: AnimatedBuilder(
         animation: _engine,
         builder: (BuildContext context, Widget? child) {

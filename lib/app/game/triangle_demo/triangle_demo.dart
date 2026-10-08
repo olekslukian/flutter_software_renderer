@@ -7,7 +7,7 @@ import 'package:vector_math/vector_math_64.dart' as v64;
 
 /// A small 3D scene that draws its filled triangle entirely on the CPU.
 class TriangleDemo extends Game {
-  TriangleDemo({super.backgroundColor});
+  TriangleDemo({super.clearColor, super.width, super.height});
 
   final List<v64.Vector3> _vertices = [
     v64.Vector3(-1.0, -0.8, 0.0),
