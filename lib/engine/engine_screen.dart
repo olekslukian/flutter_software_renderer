@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter_software_renderer/engine/engine_painter.dart';
 import 'package:flutter_software_renderer/engine/game.dart';
 import 'package:flutter_software_renderer/engine/engine.dart';
 
@@ -16,14 +15,14 @@ class EngineScreen extends StatefulWidget {
 class _EngineScreenState extends State<EngineScreen>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
-  late final Engine _renderer;
+  late final Engine _engine;
   double _lastFrameTime = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _renderer = Engine(widget.game);
-    _renderer.initialize();
+    _engine = Engine(widget.game);
+    _engine.initialize();
     _ticker = createTicker(_onTick)..start();
   }
 
@@ -33,18 +32,28 @@ class _EngineScreenState extends State<EngineScreen>
         ? 0.0
         : currentTime - _lastFrameTime;
     _lastFrameTime = currentTime;
-    _renderer.update(deltaTime);
+    _engine.update(deltaTime);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _renderer.backgroundColor,
-      body: Center(
-        child: CustomPaint(
-          size: Size.infinite,
-          painter: EnginePainter(renderer: _renderer),
-        ),
+      backgroundColor: _engine.backgroundColor,
+      body: AnimatedBuilder(
+        animation: _engine,
+        builder: (BuildContext context, Widget? child) {
+          if (_engine.renderError case final Object error) {
+            return Center(child: Text('Render failed: $error'));
+          }
+
+          return SizedBox.expand(
+            child: RawImage(
+              image: _engine.image,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.none,
+            ),
+          );
+        },
       ),
     );
   }
@@ -52,7 +61,7 @@ class _EngineScreenState extends State<EngineScreen>
   @override
   void dispose() {
     _ticker.dispose();
-    _renderer.dispose();
+    _engine.dispose();
     super.dispose();
   }
 }

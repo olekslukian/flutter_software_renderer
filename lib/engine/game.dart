@@ -1,3 +1,4 @@
+import 'software_framebuffer.dart';
 import 'dart:ui';
 
 abstract class Game {
@@ -7,5 +8,5 @@ abstract class Game {
 
   void initialize();
   void update(double deltaTime);
-  void render(Canvas canvas, Size size);
+  void render(SoftwareFramebuffer framebuffer);
 }

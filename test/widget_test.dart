@@ -1,21 +1,28 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_software_renderer/app/game/cube_demo/cube_demo.dart';
+import 'package:flutter_software_renderer/app/game/triangle_demo/triangle_demo.dart';
 import 'package:flutter_software_renderer/engine/engine_screen.dart';
 
 void main() {
   testWidgets(
-    'Software3DEngineScreen pumps and advances ticks without errors',
+    'EngineScreen presents the software-rendered image as time advances',
     (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(home: EngineScreen(game: CubeDemo())),
+        MaterialApp(home: EngineScreen(game: TriangleDemo())),
       );
 
       expect(find.byType(EngineScreen), findsOneWidget);
-      expect(find.byType(CustomPaint), findsWidgets);
+      expect(find.byType(RawImage), findsOneWidget);
 
-      await tester.pump(const Duration(milliseconds: 16));
-      await tester.pump(const Duration(milliseconds: 32));
+      // Image decoding uses the real async codec, so let it finish outside the
+      // widget-test clock before rebuilding with the decoded image.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pump();
+      final RawImage rawImage = tester.widget(find.byType(RawImage));
+      expect(rawImage.image, isNotNull);
+
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(tester.takeException(), isNull);
