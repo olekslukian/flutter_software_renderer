@@ -1,32 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_software_renderer/engine/engine_painter.dart';
+import 'package:flutter_software_renderer/engine/game.dart';
+import 'package:flutter_software_renderer/engine/engine.dart';
 
-import '../rendering/cube_renderer.dart';
+class EngineScreen extends StatefulWidget {
+  const EngineScreen({required this.game, super.key});
 
-/// Owns the demo's vsync-driven update loop and presents its rendered canvas.
-class Software3DEngineScreen extends StatefulWidget {
-  const Software3DEngineScreen({super.key});
+  final Game game;
 
   @override
-  State<Software3DEngineScreen> createState() => _Software3DEngineScreenState();
+  State<EngineScreen> createState() => _EngineScreenState();
 }
 
-class _Software3DEngineScreenState extends State<Software3DEngineScreen>
+class _EngineScreenState extends State<EngineScreen>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
-  final CubeRenderer _renderer = CubeRenderer();
+  late final Engine _renderer;
   double _lastFrameTime = 0.0;
 
   @override
   void initState() {
     super.initState();
+    _renderer = Engine(widget.game);
+    _renderer.initialize();
     _ticker = createTicker(_onTick)..start();
   }
 
   void _onTick(Duration elapsed) {
     final double currentTime = elapsed.inMicroseconds / 1000000.0;
-    final double deltaTime =
-        _lastFrameTime == 0.0 ? 0.0 : currentTime - _lastFrameTime;
+    final double deltaTime = _lastFrameTime == 0.0
+        ? 0.0
+        : currentTime - _lastFrameTime;
     _lastFrameTime = currentTime;
     _renderer.update(deltaTime);
   }
@@ -34,11 +39,11 @@ class _Software3DEngineScreenState extends State<Software3DEngineScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D15),
+      backgroundColor: _renderer.backgroundColor,
       body: Center(
         child: CustomPaint(
           size: Size.infinite,
-          painter: Software3DPainter(renderer: _renderer),
+          painter: EnginePainter(renderer: _renderer),
         ),
       ),
     );

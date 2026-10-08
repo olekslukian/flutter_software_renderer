@@ -1,10 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:vector_math/vector_math_64.dart' as v64;
 
 /// Demonstrates a CPU-side 3D pipeline by projecting and drawing a cube
 /// directly onto Flutter's canvas.
-class CubeRenderer extends ChangeNotifier {
+class Cube {
   final v64.Matrix4 _modelMatrix = v64.Matrix4.identity();
   final v64.Matrix4 _viewMatrix = v64.Matrix4.identity();
   final v64.Matrix4 _projectionMatrix = v64.Matrix4.identity();
@@ -23,9 +22,18 @@ class CubeRenderer extends ChangeNotifier {
   ];
 
   final List<List<int>> _edges = const [
-    [0, 1], [1, 2], [2, 3], [3, 0],
-    [4, 5], [5, 6], [6, 7], [7, 4],
-    [0, 4], [1, 5], [2, 6], [3, 7],
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    [3, 0],
+    [4, 5],
+    [5, 6],
+    [6, 7],
+    [7, 4],
+    [0, 4],
+    [1, 5],
+    [2, 6],
+    [3, 7],
   ];
 
   final Paint _edgePaint = Paint()
@@ -37,8 +45,10 @@ class CubeRenderer extends ChangeNotifier {
     ..color = const Color(0xFFFF007F)
     ..style = PaintingStyle.fill;
 
-  late final List<Offset> _screenPositions =
-      List<Offset>.filled(_vertices.length, Offset.zero);
+  late final List<Offset> _screenPositions = List<Offset>.filled(
+    _vertices.length,
+    Offset.zero,
+  );
 
   double _angleX = 0.0;
   double _angleY = 0.0;
@@ -63,8 +73,6 @@ class CubeRenderer extends ChangeNotifier {
     _viewMatrix
       ..setIdentity()
       ..setTranslationRaw(0.0, 0.0, -4.0);
-
-    notifyListeners();
   }
 
   /// Projects the cube's vertices into canvas coordinates and draws its mesh.
@@ -115,22 +123,5 @@ class CubeRenderer extends ChangeNotifier {
     for (final Offset position in _screenPositions) {
       canvas.drawCircle(position, 4.0, _vertexPaint);
     }
-  }
-}
-
-/// Connects renderer notifications to Flutter's paint-only update path.
-class Software3DPainter extends CustomPainter {
-  Software3DPainter({required this.renderer}) : super(repaint: renderer);
-
-  final CubeRenderer renderer;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    renderer.render(canvas, size);
-  }
-
-  @override
-  bool shouldRepaint(covariant Software3DPainter oldDelegate) {
-    return oldDelegate.renderer != renderer;
   }
 }
