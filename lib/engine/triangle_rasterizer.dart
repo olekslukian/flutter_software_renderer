@@ -1,6 +1,7 @@
 import 'dart:ui';
 
-import 'software_framebuffer.dart';
+import 'graphics/buffers/depth_buffer.dart';
+import 'graphics/buffers/software_framebuffer.dart';
 
 /// Fills a 2D triangle by testing each pixel center against its three edges.
 class TriangleRasterizer {
@@ -20,6 +21,61 @@ class TriangleRasterizer {
     Offset a,
     Offset b,
     Offset c,
+    Color color,
+  ) {
+    return _fill(framebuffer, null, a, b, c, null, null, null, color);
+  }
+
+  /// Fills a projected triangle while interpolating its per-vertex normalized
+  /// depths and testing each covered pixel against [depthBuffer].
+  ///
+  /// Depth uses the convention that smaller values are nearer. A depth value
+  /// is written only when its fragment passes the depth test. The framebuffer
+  /// and depth buffer must have matching dimensions.
+  static int fillWithDepth(
+    SoftwareFramebuffer framebuffer,
+    DepthBuffer depthBuffer,
+    Offset a,
+    Offset b,
+    Offset c,
+    double depthA,
+    double depthB,
+    double depthC,
+    Color color,
+  ) {
+    if (framebuffer.width != depthBuffer.width ||
+        framebuffer.height != depthBuffer.height) {
+      throw ArgumentError(
+        'The framebuffer and depth buffer dimensions must match.',
+      );
+    }
+    _validateDepth(depthA);
+    _validateDepth(depthB);
+    _validateDepth(depthC);
+    return _fill(
+      framebuffer,
+      depthBuffer,
+      a,
+      b,
+      c,
+      depthA,
+      depthB,
+      depthC,
+      color,
+    );
+  }
+
+  /// Rasterizes [a], [b], and [c] once for both color-only and depth-tested
+  /// fills, returning the number of covered pixels that were written.
+  static int _fill(
+    SoftwareFramebuffer framebuffer,
+    DepthBuffer? depthBuffer,
+    Offset a,
+    Offset b,
+    Offset c,
+    double? depthA,
+    double? depthB,
+    double? depthC,
     Color color,
   ) {
     final double area = _edge(a, b, c);
@@ -54,6 +110,12 @@ class TriangleRasterizer {
             : edgeAB <= 0 && edgeBC <= 0 && edgeCA <= 0;
 
         if (inside) {
+          if (depthBuffer != null) {
+            final double depth =
+                (edgeBC * depthA! + edgeCA * depthB! + edgeAB * depthC!) /
+                area;
+            if (!depthBuffer.testAndSet(x, y, depth)) continue;
+          }
           framebuffer.setPixel(x, y, color);
           writtenPixels++;
         }
@@ -61,6 +123,17 @@ class TriangleRasterizer {
     }
 
     return writtenPixels;
+  }
+
+  /// Rejects projected vertex depths outside the normalized depth interval.
+  static void _validateDepth(double depth) {
+    if (!depth.isFinite || depth < 0.0 || depth > 1.0) {
+      throw ArgumentError.value(
+        depth,
+        'depth',
+        'must be finite and between 0.0 and 1.0',
+      );
+    }
   }
 
   /// Computes the signed 2D cross product of the [start]-to-[end] edge and the

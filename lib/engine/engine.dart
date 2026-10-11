@@ -3,20 +3,24 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_software_renderer/engine/game.dart';
-import 'package:flutter_software_renderer/engine/software_framebuffer.dart';
+import 'package:flutter_software_renderer/engine/graphics/buffers/software_framebuffer.dart';
+import 'package:flutter_software_renderer/engine/graphics/rendering/renderer.dart';
 
 class Engine extends ChangeNotifier {
   /// Creates an engine for [game] and allocates a framebuffer matching the
   /// dimensions and clear color declared by that game.
   Engine(this.game)
-    : framebuffer = SoftwareFramebuffer(
-        width: game.width,
-        height: game.height,
-        clearColor: game.clearColor,
+    : renderer = Renderer(
+        SoftwareFramebuffer(
+          width: game.width,
+          height: game.height,
+          clearColor: game.clearColor,
+        ),
       );
 
   final Game game;
-  final SoftwareFramebuffer framebuffer;
+  final Renderer renderer;
+  SoftwareFramebuffer get framebuffer => renderer.framebuffer;
 
   ui.Image? _image;
   bool _conversionInProgress = false;
@@ -54,8 +58,8 @@ class Engine extends ChangeNotifier {
       return;
     }
 
-    framebuffer.clear();
-    game.render(framebuffer);
+    renderer.beginFrame();
+    game.render(renderer);
     final Uint8List pixels = framebuffer.snapshot();
     _conversionInProgress = true;
     renderError = null;

@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui';
 
-/// A small CPU-owned RGBA image that software renderers can write into.
+/// A small CPU-owned RGBA color buffer that software renderers can write into.
 class SoftwareFramebuffer {
   /// Allocates a [width]-by-[height] RGBA pixel buffer and sets its default
   /// [clearColor]. Both dimensions must be positive.
