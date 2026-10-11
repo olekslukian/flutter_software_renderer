@@ -4,8 +4,17 @@ import 'software_framebuffer.dart';
 
 /// Fills a 2D triangle by testing each pixel center against its three edges.
 class TriangleRasterizer {
+  /// Prevents construction; triangle filling is exposed as a static operation.
   const TriangleRasterizer._();
 
+  /// Fills the portion of [framebuffer] covered by the triangle with vertices
+  /// [a], [b], and [c], returning the number of pixel centers covered.
+  ///
+  /// Degenerate triangles with zero signed area write no pixels. Otherwise,
+  /// the method clamps the triangle's bounding box to the framebuffer, samples
+  /// each candidate pixel at its center, and tests the three directed edge
+  /// functions against the triangle's winding. Coverage is therefore evaluated
+  /// consistently for either clockwise or counterclockwise vertex order.
   static int fill(
     SoftwareFramebuffer framebuffer,
     Offset a,
@@ -16,7 +25,6 @@ class TriangleRasterizer {
     final double area = _edge(a, b, c);
     if (area == 0.0) return 0;
 
-    // Only visit pixels near the shape instead of scanning the entire image.
     final int minX = _minimum(a.dx, b.dx, c.dx).floor().clamp(
       0,
       framebuffer.width - 1,
@@ -37,7 +45,6 @@ class TriangleRasterizer {
     int writtenPixels = 0;
     for (int y = minY; y <= maxY; y++) {
       for (int x = minX; x <= maxX; x++) {
-        // Sampling at the center makes coverage consistent for every pixel.
         final Offset sample = Offset(x + 0.5, y + 0.5);
         final double edgeAB = _edge(a, b, sample);
         final double edgeBC = _edge(b, c, sample);
@@ -56,14 +63,20 @@ class TriangleRasterizer {
     return writtenPixels;
   }
 
+  /// Computes the signed 2D cross product of the [start]-to-[end] edge and the
+  /// [start]-to-[point] vector. Its sign indicates which side of the directed
+  /// edge contains [point], and its magnitude is twice the corresponding
+  /// triangle's signed area.
   static double _edge(Offset start, Offset end, Offset point) {
     return (end.dx - start.dx) * (point.dy - start.dy) -
         (end.dy - start.dy) * (point.dx - start.dx);
   }
 
+  /// Returns the smallest of three coordinates for the triangle's x/y bounds.
   static double _minimum(double a, double b, double c) =>
       a < b ? (a < c ? a : c) : (b < c ? b : c);
 
+  /// Returns the largest of three coordinates for the triangle's x/y bounds.
   static double _maximum(double a, double b, double c) =>
       a > b ? (a > c ? a : c) : (b > c ? b : c);
 }
