@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_software_renderer/engine/game.dart';
@@ -22,7 +24,8 @@ class _EngineScreenState extends State<EngineScreen>
   void initState() {
     super.initState();
     _engine = Engine(widget.game);
-    _engine.initialize();
+    // Engine publishes initialization errors through its notifier.
+    unawaited(_engine.initialize());
     _ticker = createTicker(_onTick)..start();
   }
 

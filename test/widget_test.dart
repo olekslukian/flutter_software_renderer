@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_software_renderer/app/game/cube_demo/cube_demo.dart';
+import 'package:flutter_software_renderer/app/game/model_view_demo/model_view_demo.dart';
 import 'package:flutter_software_renderer/engine/engine_screen.dart';
 
 void main() {
@@ -8,7 +8,7 @@ void main() {
     'EngineScreen presents the software-rendered image as time advances',
     (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(home: EngineScreen(game: CubeDemo())),
+        MaterialApp(home: EngineScreen(game: ModelViewDemo())),
       );
 
       expect(find.byType(EngineScreen), findsOneWidget);

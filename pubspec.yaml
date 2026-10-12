@@ -18,3 +18,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Include OBJ files loaded asynchronously by the model-view demo.
+  assets:
+    - assets/models/

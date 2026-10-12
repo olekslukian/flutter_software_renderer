@@ -25,6 +25,8 @@ class Engine extends ChangeNotifier {
   ui.Image? _image;
   bool _conversionInProgress = false;
   bool _frameRequested = false;
+  bool _initializationInProgress = false;
+  bool _initialized = false;
   bool _disposed = false;
   Object? renderError;
 
@@ -34,15 +36,33 @@ class Engine extends ChangeNotifier {
   /// The most recently decoded frame, or `null` until a frame is available.
   ui.Image? get image => _image;
 
-  /// Initializes the game and requests its first rendered frame.
-  void initialize() {
-    game.initialize();
-    _requestFrame();
+  /// Awaits game initialization before requesting its first rendered frame.
+  ///
+  /// Initialization failures are published through [renderError] so the host
+  /// can display them alongside render failures.
+  Future<void> initialize() async {
+    if (_disposed || _initialized || _initializationInProgress) return;
+    _initializationInProgress = true;
+    try {
+      // Asset-backed games must finish loading before the first frame is drawn.
+      await game.initialize();
+      if (_disposed) return;
+      _initialized = true;
+      _requestFrame();
+    } catch (error) {
+      if (!_disposed) {
+        renderError = error;
+        notifyListeners();
+      }
+    } finally {
+      _initializationInProgress = false;
+    }
   }
 
   /// Advances the game by [deltaTime] seconds and requests a frame containing
   /// the resulting game state.
   void update(double deltaTime) {
+    if (!_initialized || _disposed) return;
     game.update(deltaTime);
     _requestFrame();
   }
@@ -58,8 +78,14 @@ class Engine extends ChangeNotifier {
       return;
     }
 
-    renderer.beginFrame();
-    game.render(renderer);
+    try {
+      renderer.beginFrame();
+      game.render(renderer);
+    } catch (error) {
+      renderError = error;
+      notifyListeners();
+      return;
+    }
     final Uint8List pixels = framebuffer.snapshot();
     _conversionInProgress = true;
     renderError = null;

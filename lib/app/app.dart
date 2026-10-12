@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_software_renderer/app/game/cube_demo/cube_demo.dart';
+import 'package:flutter_software_renderer/app/game/model_view_demo/model_view_demo.dart';
 import 'package:flutter_software_renderer/engine/engine_screen.dart';
 
 class App extends StatelessWidget {
@@ -9,7 +9,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: EngineScreen(game: CubeDemo(width: 160, height: 120)),
+      home: EngineScreen(game: ModelViewDemo(width: 320, height: 240)),
     );
   }
 }

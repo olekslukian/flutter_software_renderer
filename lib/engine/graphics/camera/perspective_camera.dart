@@ -82,7 +82,12 @@ class PerspectiveCamera {
       throw StateError('Configure the camera viewport before projecting.');
     }
 
-    _clipPosition.setValues(worldPosition.x, worldPosition.y, worldPosition.z, 1.0);
+    _clipPosition.setValues(
+      worldPosition.x,
+      worldPosition.y,
+      worldPosition.z,
+      1.0,
+    );
     _viewProjectionMatrix.transform(_clipPosition);
     if (_clipPosition.w == 0.0 || !_clipPosition.w.isFinite) {
       throw StateError('The world position cannot be projected.');
@@ -148,7 +153,6 @@ class PerspectiveCamera {
   }
 }
 
-/// A projected vertex containing a framebuffer position and normalized depth.
 class ProjectedVertex {
   /// Creates a projected vertex at [position] with normalized [depth].
   const ProjectedVertex(this.position, this.depth);
