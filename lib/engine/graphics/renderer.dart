@@ -1,8 +1,8 @@
 import 'dart:ui';
 
-import '../buffers/depth_buffer.dart';
-import '../buffers/software_framebuffer.dart';
-import '../../triangle_rasterizer.dart';
+import 'buffers/depth_buffer.dart';
+import 'buffers/software_framebuffer.dart';
+import 'triangle_rasterizer.dart';
 
 /// Coordinates CPU triangle rasterization into a color and depth buffer.
 class Renderer {

@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter_software_renderer/engine/game.dart';
 import 'package:flutter_software_renderer/engine/graphics/camera/perspective_camera.dart';
-import 'package:flutter_software_renderer/engine/graphics/rendering/renderer.dart';
+import 'package:flutter_software_renderer/engine/graphics/renderer.dart';
 import 'package:flutter_software_renderer/engine/math/transform3.dart';
 import 'package:vector_math/vector_math_64.dart' as v64;
 
@@ -77,23 +77,28 @@ class CubeDemo extends Game {
   final Transform3 _transform = Transform3(
     rotation: v64.Vector3(0.0, 0.45, 0.0),
   );
+
   final PerspectiveCamera _camera = PerspectiveCamera(
     position: v64.Vector3(0.0, 0.0, 4.5),
     target: v64.Vector3.zero(),
   );
+
   final List<v64.Vector4> _transformedPositions = List<v64.Vector4>.generate(
     8,
     (_) => v64.Vector4.zero(),
   );
+
   final List<v64.Vector3> _worldPositions = List<v64.Vector3>.generate(
     8,
     (_) => v64.Vector3.zero(),
   );
+
   final List<Offset> _screenPositions = List<Offset>.filled(8, Offset.zero);
+
   final List<double> _depths = List<double>.filled(8, 1.0);
 
   @override
-  void initialize() {
+  Future<void> initialize() async {
     _transform.rotation.setValues(0.45 * 0.7, 0.45, 0.45 * 0.35);
     _transform.updateMatrix();
   }
@@ -109,7 +114,9 @@ class CubeDemo extends Game {
   void render(Renderer renderer) {
     final int width = renderer.framebuffer.width;
     final int height = renderer.framebuffer.height;
+
     _camera.configureViewport(width, height);
+
     for (int index = 0; index < _vertices.length; index++) {
       final v64.Vector3 vertex = _vertices[index];
       final v64.Vector4 transformedPosition = _transformedPositions[index];

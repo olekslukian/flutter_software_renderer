@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_software_renderer/engine/game.dart';
 import 'package:flutter_software_renderer/engine/graphics/buffers/software_framebuffer.dart';
-import 'package:flutter_software_renderer/engine/graphics/rendering/renderer.dart';
+import 'package:flutter_software_renderer/engine/graphics/renderer.dart';
 
 class Engine extends ChangeNotifier {
   /// Creates an engine for [game] and allocates a framebuffer matching the

@@ -3,8 +3,8 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_software_renderer/engine/graphics/buffers/depth_buffer.dart';
 import 'package:flutter_software_renderer/engine/graphics/buffers/software_framebuffer.dart';
-import 'package:flutter_software_renderer/engine/graphics/rendering/renderer.dart';
-import 'package:flutter_software_renderer/engine/triangle_rasterizer.dart';
+import 'package:flutter_software_renderer/engine/graphics/renderer.dart';
+import 'package:flutter_software_renderer/engine/graphics/triangle_rasterizer.dart';
 
 void main() {
   group('SoftwareFramebuffer', () {

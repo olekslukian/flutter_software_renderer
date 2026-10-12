@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_software_renderer/app/game/cube_demo/cube_demo.dart';
 import 'package:flutter_software_renderer/engine/graphics/buffers/software_framebuffer.dart';
-import 'package:flutter_software_renderer/engine/graphics/rendering/renderer.dart';
+import 'package:flutter_software_renderer/engine/graphics/renderer.dart';
 
 void main() {
   test(

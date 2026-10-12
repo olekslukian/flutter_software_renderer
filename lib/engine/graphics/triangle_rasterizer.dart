@@ -1,13 +1,10 @@
 import 'dart:ui';
 
-import 'graphics/buffers/depth_buffer.dart';
-import 'graphics/buffers/software_framebuffer.dart';
+import 'buffers/depth_buffer.dart';
+import 'buffers/software_framebuffer.dart';
 
 /// Fills a 2D triangle by testing each pixel center against its three edges.
-class TriangleRasterizer {
-  /// Prevents construction; triangle filling is exposed as a static operation.
-  const TriangleRasterizer._();
-
+abstract class TriangleRasterizer {
   /// Fills the portion of [framebuffer] covered by the triangle with vertices
   /// [a], [b], and [c], returning the number of pixel centers covered.
   ///
@@ -81,22 +78,26 @@ class TriangleRasterizer {
     final double area = _edge(a, b, c);
     if (area == 0.0) return 0;
 
-    final int minX = _minimum(a.dx, b.dx, c.dx).floor().clamp(
-      0,
-      framebuffer.width - 1,
-    );
-    final int maxX = _maximum(a.dx, b.dx, c.dx).ceil().clamp(
-      0,
-      framebuffer.width - 1,
-    );
-    final int minY = _minimum(a.dy, b.dy, c.dy).floor().clamp(
-      0,
-      framebuffer.height - 1,
-    );
-    final int maxY = _maximum(a.dy, b.dy, c.dy).ceil().clamp(
-      0,
-      framebuffer.height - 1,
-    );
+    final int minX = _minimum(
+      a.dx,
+      b.dx,
+      c.dx,
+    ).floor().clamp(0, framebuffer.width - 1);
+    final int maxX = _maximum(
+      a.dx,
+      b.dx,
+      c.dx,
+    ).ceil().clamp(0, framebuffer.width - 1);
+    final int minY = _minimum(
+      a.dy,
+      b.dy,
+      c.dy,
+    ).floor().clamp(0, framebuffer.height - 1);
+    final int maxY = _maximum(
+      a.dy,
+      b.dy,
+      c.dy,
+    ).ceil().clamp(0, framebuffer.height - 1);
 
     int writtenPixels = 0;
     for (int y = minY; y <= maxY; y++) {
@@ -112,8 +113,7 @@ class TriangleRasterizer {
         if (inside) {
           if (depthBuffer != null) {
             final double depth =
-                (edgeBC * depthA! + edgeCA * depthB! + edgeAB * depthC!) /
-                area;
+                (edgeBC * depthA! + edgeCA * depthB! + edgeAB * depthC!) / area;
             if (!depthBuffer.testAndSet(x, y, depth)) continue;
           }
           framebuffer.setPixel(x, y, color);
