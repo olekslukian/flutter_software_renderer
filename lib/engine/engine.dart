@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -7,8 +8,6 @@ import 'package:flutter_software_renderer/engine/graphics/buffers/software_frame
 import 'package:flutter_software_renderer/engine/graphics/renderer.dart';
 
 class Engine extends ChangeNotifier {
-  /// Creates an engine for [game] and allocates a framebuffer matching the
-  /// dimensions and clear color declared by that game.
   Engine(this.game)
     : renderer = Renderer(
         SoftwareFramebuffer(
@@ -30,23 +29,20 @@ class Engine extends ChangeNotifier {
   bool _disposed = false;
   Object? renderError;
 
-  /// The clear color configured by the current [game].
   Color get clearColor => game.clearColor;
 
-  /// The most recently decoded frame, or `null` until a frame is available.
   ui.Image? get image => _image;
 
-  /// Awaits game initialization before requesting its first rendered frame.
-  ///
-  /// Initialization failures are published through [renderError] so the host
-  /// can display them alongside render failures.
   Future<void> initialize() async {
-    if (_disposed || _initialized || _initializationInProgress) return;
+    if (_disposed || _initialized || _initializationInProgress) {
+      return;
+    }
     _initializationInProgress = true;
     try {
-      // Asset-backed games must finish loading before the first frame is drawn.
       await game.initialize();
-      if (_disposed) return;
+      if (_disposed) {
+        return;
+      }
       _initialized = true;
       _requestFrame();
     } catch (error) {
@@ -59,20 +55,18 @@ class Engine extends ChangeNotifier {
     }
   }
 
-  /// Advances the game by [deltaTime] seconds and requests a frame containing
-  /// the resulting game state.
   void update(double deltaTime) {
-    if (!_initialized || _disposed) return;
+    if (!_initialized || _disposed) {
+      return;
+    }
     game.update(deltaTime);
     _requestFrame();
   }
 
-  /// Renders the current game state into the framebuffer and starts converting
-  /// its copied RGBA pixels into a Flutter image. While a conversion is active,
-  /// coalesces additional requests so that only the latest state is rendered
-  /// when that conversion finishes.
   void _requestFrame() {
-    if (_disposed) return;
+    if (_disposed) {
+      return;
+    }
     if (_conversionInProgress) {
       _frameRequested = true;
       return;
@@ -86,16 +80,12 @@ class Engine extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    final Uint8List pixels = framebuffer.snapshot();
+    final pixels = framebuffer.snapshot();
     _conversionInProgress = true;
     renderError = null;
-    _convertToImage(pixels);
+    unawaited(_convertToImage(pixels));
   }
 
-  /// Converts a copied RGBA [pixels] buffer into a [ui.Image], releasing every
-  /// temporary decoder resource when complete. Publishes successful images and
-  /// decoding errors unless the engine has already been disposed; if a frame
-  /// was requested during conversion, renders the latest game state afterward.
   Future<void> _convertToImage(Uint8List pixels) async {
     ui.Image? decodedImage;
     ui.ImmutableBuffer? buffer;
@@ -138,9 +128,6 @@ class Engine extends ChangeNotifier {
     }
   }
 
-  /// Marks the engine as unusable and releases its owned image before allowing
-  /// [ChangeNotifier] to complete disposal. Any conversion already in flight
-  /// will dispose its result rather than publishing it.
   @override
   void dispose() {
     _disposed = true;

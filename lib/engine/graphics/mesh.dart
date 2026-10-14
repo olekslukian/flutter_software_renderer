@@ -1,36 +1,26 @@
+import 'dart:math' as math;
+
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:vector_math/vector_math_64.dart' as v64;
 
-/// Indexed triangle geometry loaded from the vertex and face data of a Wavefront
-/// OBJ model.
 class Mesh {
-  /// Creates a mesh from [vertices] and a flattened triangle [indices] list.
-  ///
-  /// Every consecutive group of three indices describes one triangle.
-  Mesh({required this.vertices, required this.indices});
-
-  /// Loads and parses an OBJ file registered as a Flutter asset.
-  static Future<Mesh> loadFromAsset(String assetPath) async {
-    final String content = await rootBundle.loadString(assetPath);
-    return Mesh.fromObj(content);
+  Mesh({required this.vertices, required this.indices}) {
+    _validate();
   }
 
-  /// Parses positions and polygon faces from OBJ source text.
-  ///
-  /// Faces are triangulated as a fan. Positive indices are one-based and
-  /// negative indices are resolved relative to the vertices declared so far.
-  /// Texture coordinates and normals are ignored.
   factory Mesh.fromObj(String objText) {
-    final List<v64.Vector3> parsedVertices = [];
-    final List<int> parsedIndices = [];
-    final List<String> lines = objText.split('\n');
+    final parsedVertices = <v64.Vector3>[];
+    final parsedIndices = <int>[];
+    final lines = objText.split('\n');
 
-    for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-      final String line = lines[lineIndex].trim();
-      if (line.isEmpty || line.startsWith('#')) continue;
+    for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      final line = lines[lineIndex].trim();
+      if (line.isEmpty || line.startsWith('#')) {
+        continue;
+      }
 
-      final List<String> parts = line.split(RegExp(r'\s+'));
-      final String header = parts[0];
+      final parts = line.split(RegExp(r'\s+'));
+      final header = parts[0];
       if (header == 'v') {
         if (parts.length < 4) {
           throw FormatException('Invalid vertex at line ${lineIndex + 1}.');
@@ -43,11 +33,13 @@ class Mesh {
           ),
         );
       } else if (header == 'f') {
-        final List<int> faceIndices = [];
-        for (final String part in parts.skip(1)) {
-          if (part.startsWith('#')) break;
-          final int objIndex = int.parse(part.split('/').first);
-          final int vertexIndex = objIndex > 0
+        final faceIndices = <int>[];
+        for (final part in parts.skip(1)) {
+          if (part.startsWith('#')) {
+            break;
+          }
+          final objIndex = int.parse(part.split('/').first);
+          final vertexIndex = objIndex > 0
               ? objIndex - 1
               : parsedVertices.length + objIndex;
           if (vertexIndex < 0 || vertexIndex >= parsedVertices.length) {
@@ -61,7 +53,7 @@ class Mesh {
         if (faceIndices.length < 3) {
           throw FormatException('Invalid face at line ${lineIndex + 1}.');
         }
-        for (int index = 1; index < faceIndices.length - 1; index++) {
+        for (var index = 1; index < faceIndices.length - 1; index++) {
           parsedIndices
             ..add(faceIndices[0])
             ..add(faceIndices[index])
@@ -78,10 +70,81 @@ class Mesh {
     return Mesh(vertices: parsedVertices, indices: parsedIndices);
   }
 
-  /// The model's local-space vertex positions.
+  static Future<Mesh> loadFromAsset(String assetPath) async {
+    final content = await rootBundle.loadString(assetPath);
+    return Mesh.fromObj(content);
+  }
+
   final List<v64.Vector3> vertices;
 
-  /// Flattened vertex indices, with each consecutive triple forming a
-  /// triangle.
   final List<int> indices;
+
+  Mesh normalized({double targetExtent = 2.0}) {
+    if (!targetExtent.isFinite || targetExtent <= 0.0) {
+      throw ArgumentError.value(
+        targetExtent,
+        'targetExtent',
+        'must be finite and positive',
+      );
+    }
+
+    var minX = double.infinity;
+    var minY = double.infinity;
+    var minZ = double.infinity;
+    var maxX = double.negativeInfinity;
+    var maxY = double.negativeInfinity;
+    var maxZ = double.negativeInfinity;
+    for (final vertex in vertices) {
+      minX = math.min(minX, vertex.x);
+      minY = math.min(minY, vertex.y);
+      minZ = math.min(minZ, vertex.z);
+      maxX = math.max(maxX, vertex.x);
+      maxY = math.max(maxY, vertex.y);
+      maxZ = math.max(maxZ, vertex.z);
+    }
+
+    final largestExtent = math.max(
+      maxX - minX,
+      math.max(maxY - minY, maxZ - minZ),
+    );
+    if (largestExtent == 0.0) {
+      throw ArgumentError('Mesh vertices must span a non-zero volume.');
+    }
+
+    final centerX = (minX + maxX) / 2.0;
+    final centerY = (minY + maxY) / 2.0;
+    final centerZ = (minZ + maxZ) / 2.0;
+    final scale = targetExtent / largestExtent;
+    return Mesh(
+      vertices: vertices
+          .map(
+            (vertex) => v64.Vector3(
+              (vertex.x - centerX) * scale,
+              (vertex.y - centerY) * scale,
+              (vertex.z - centerZ) * scale,
+            ),
+          )
+          .toList(growable: false),
+      indices: List<int>.of(indices),
+    );
+  }
+
+  void _validate() {
+    if (vertices.isEmpty) {
+      throw ArgumentError('Mesh must contain at least one vertex.');
+    }
+    if (indices.length % 3 != 0) {
+      throw ArgumentError('Mesh indices must contain complete triangles.');
+    }
+    for (final index in indices) {
+      if (index < 0 || index >= vertices.length) {
+        throw ArgumentError.value(index, 'indices', 'is out of range');
+      }
+    }
+    for (final vertex in vertices) {
+      if (!vertex.x.isFinite || !vertex.y.isFinite || !vertex.z.isFinite) {
+        throw ArgumentError('Mesh vertices must have finite coordinates.');
+      }
+    }
+  }
 }

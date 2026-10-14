@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter_software_renderer/engine/game.dart';
 import 'package:flutter_software_renderer/engine/engine.dart';
+import 'package:flutter_software_renderer/engine/game.dart';
 
 class EngineScreen extends StatefulWidget {
   const EngineScreen({required this.game, super.key});
@@ -18,20 +18,19 @@ class _EngineScreenState extends State<EngineScreen>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
   late final Engine _engine;
-  double _lastFrameTime = 0.0;
+  double _lastFrameTime = 0;
 
   @override
   void initState() {
     super.initState();
     _engine = Engine(widget.game);
-    // Engine publishes initialization errors through its notifier.
     unawaited(_engine.initialize());
     _ticker = createTicker(_onTick)..start();
   }
 
   void _onTick(Duration elapsed) {
-    final double currentTime = elapsed.inMicroseconds / 1000000.0;
-    final double deltaTime = _lastFrameTime == 0.0
+    final currentTime = elapsed.inMicroseconds / 1000000.0;
+    final deltaTime = _lastFrameTime == 0.0
         ? 0.0
         : currentTime - _lastFrameTime;
     _lastFrameTime = currentTime;
@@ -44,7 +43,7 @@ class _EngineScreenState extends State<EngineScreen>
       backgroundColor: _engine.clearColor,
       body: AnimatedBuilder(
         animation: _engine,
-        builder: (BuildContext context, Widget? child) {
+        builder: (context, child) {
           if (_engine.renderError case final Object error) {
             return Center(child: Text('Render failed: $error'));
           }

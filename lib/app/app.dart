@@ -9,7 +9,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: EngineScreen(game: ModelViewDemo(width: 320, height: 240)),
+      home: EngineScreen(game: ModelViewDemo(width: 160, height: 120)),
     );
   }
 }

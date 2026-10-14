@@ -14,6 +14,9 @@ Flutter starts the app
   -> RawImage displays that image
 ```
 
+For layer boundaries, ownership rules, conventions, and extension guidance, see
+[ARCHITECTURE.md](./ARCHITECTURE.md).
+
 The renderer in this project is a **software renderer**: Dart code calculates
 which pixels triangles cover and writes their colors into memory. Flutter hosts
 the app and displays the finished image; Flutter is not drawing the model's
@@ -71,14 +74,16 @@ avoids repeating a shared corner for every neighboring face.
 
 ## 3. Preparing and animating the mesh
 
-The OBJ can use any size and origin. `_prepareMesh()` in
-[`ModelViewDemo`](lib/app/game/model_view_demo/model_view_demo.dart):
+The OBJ can use any size and origin. `Mesh.normalized()` (called once from
+[`ModelViewDemo`](lib/app/game/model_view_demo/model_view_demo.dart)
+`initialize`) returns a new mesh that:
 
-1. Checks that the index list makes complete triangles, indices point to real
-   vertices, and vertex coordinates are finite.
-2. Finds the model's minimum and maximum x, y, and z coordinates (its bounds).
-3. Moves the bounds' center to `(0, 0, 0)`.
-4. Uniformly scales the largest dimension to 2 units.
+1. Finds the model's minimum and maximum x, y, and z coordinates (its bounds).
+2. Moves the bounds' center to `(0, 0, 0)`.
+3. Uniformly scales the largest dimension to 2 units.
+
+Mesh construction already validates the index list, index range, and finite
+coordinates, so `normalized()` only has to handle geometry.
 
 Centering before rotating makes the model spin around its own center instead
 of around some distant origin in the original file. Uniform scale preserves
@@ -99,16 +104,18 @@ rotation depend on time rather than on a particular display refresh rate.
 
 ## 4. From each 3D point to a screen pixel
 
-For each frame, `ModelViewDemo.render()` does this for every prepared vertex:
+Each frame, the game calls `Renderer.drawMesh(mesh, transform, camera, color)`.
+The engine then does the following:
 
-1. **Model transform:** `Transform3.transformPosition()` moves the vertex from
-   model-local coordinates into world coordinates. A fourth coordinate,
-   `w = 1`, lets the matrix include translation.
-2. **Camera setup:** `PerspectiveCamera.configureViewport()` builds a view
-   matrix from the camera position, target, and up direction, then builds a
-   perspective projection using the framebuffer's width and height.
-3. **Projection:** `PerspectiveCamera.project()` maps the world point through
-   the view and projection matrices. Perspective makes distant parts look
+1. **Camera setup:** `Camera.configureViewport()` builds a view matrix from the
+   camera position, target, and up direction, then asks the subclass
+   (`PerspectiveCamera`) for a projection matrix using the framebuffer's width
+   and height.
+2. **Model-view-projection:** `MeshPipeline` multiplies the projection, view,
+   and model matrices once per mesh. `Transform3` supplies the model matrix.
+   A fourth coordinate, `w = 1`, lets the matrix include translation.
+3. **Projection:** for each vertex, `Camera.projectClipPosition()` applies the
+   combined matrix and divides by `w`. Perspective makes distant parts look
    smaller.
 4. **Viewport mapping:** the projected x/y position is converted from a
    normalized range into framebuffer pixel coordinates. The y direction is
@@ -116,15 +123,15 @@ For each frame, `ModelViewDemo.render()` does this for every prepared vertex:
 5. **Depth:** the projected depth is converted to the normalized range `0..1`.
    Smaller depth means closer to the camera; larger depth means farther away.
 
-The demo stores the transformed positions, screen positions, and depths in
-lists allocated during mesh preparation. Reusing these lists avoids allocating
-new per-vertex working objects every frame.
+`MeshPipeline` stores screen positions and depths in lists it owns and reuses
+them across frames, reallocating only when the vertex count changes.
 
 ## 5. Turning triangles into pixels
 
-The demo walks the index list three entries at a time. Each triple picks three
-projected vertices and calls `Renderer.drawTriangle()` with their screen
-positions, depths, and the demo's single cyan color.
+`Renderer.drawMesh()` walks the index list three entries at a time. A triangle
+is skipped if any vertex depth is non-finite or outside `0..1`. Otherwise the
+triple's screen positions and depths go to `Renderer.drawTriangle()` with the
+color the game passed in.
 
 The draw path is:
 
@@ -210,11 +217,13 @@ depth buffers, but it is not yet a general-purpose scene or graphics engine.
 | [`lib/engine/engine_screen.dart`](lib/engine/engine_screen.dart) | Flutter widget host, ticker, error display, and image display. |
 | [`lib/engine/game.dart`](lib/engine/game.dart) | Lifecycle contract that game content implements. |
 | [`lib/engine/engine.dart`](lib/engine/engine.dart) | Initialization, frame scheduling, rendering coordination, async image conversion, and cleanup. |
-| [`lib/app/game/model_view_demo/model_view_demo.dart`](lib/app/game/model_view_demo/model_view_demo.dart) | Loads and normalizes the model, animates it, projects vertices, and submits triangles. |
-| [`lib/engine/graphics/mesh.dart`](lib/engine/graphics/mesh.dart) | OBJ asset loading and indexed triangle mesh data. |
+| [`lib/app/game/model_view_demo/model_view_demo.dart`](lib/app/game/model_view_demo/model_view_demo.dart) | Loads the model, normalizes it once, animates the transform, and submits the mesh each frame. |
+| [`lib/engine/graphics/mesh.dart`](lib/engine/graphics/mesh.dart) | OBJ asset loading, validated indexed triangle mesh data, and normalization. |
 | [`lib/engine/math/transform3.dart`](lib/engine/math/transform3.dart) | Position, rotation, scale, and model-matrix transform. |
-| [`lib/engine/graphics/camera/perspective_camera.dart`](lib/engine/graphics/camera/perspective_camera.dart) | Camera matrices and world-to-screen projection. |
-| [`lib/engine/graphics/renderer.dart`](lib/engine/graphics/renderer.dart) | Frame clearing and triangle-rasterizer entry point. |
+| [`lib/engine/graphics/camera/camera.dart`](lib/engine/graphics/camera/camera.dart) | Camera base: view matrix, viewport configuration, and world-to-screen projection. |
+| [`lib/engine/graphics/camera/perspective_camera.dart`](lib/engine/graphics/camera/perspective_camera.dart) | Perspective projection matrix. |
+| [`lib/engine/graphics/mesh_pipeline.dart`](lib/engine/graphics/mesh_pipeline.dart) | Per-mesh model-view-projection and per-vertex projection buffers. |
+| [`lib/engine/graphics/renderer.dart`](lib/engine/graphics/renderer.dart) | Frame clearing, `drawMesh` pipeline entry point, and triangle submission. |
 | [`lib/engine/graphics/triangle_rasterizer.dart`](lib/engine/graphics/triangle_rasterizer.dart) | Triangle coverage, depth interpolation, and pixel writes. |
 | [`lib/engine/graphics/buffers/software_framebuffer.dart`](lib/engine/graphics/buffers/software_framebuffer.dart) | CPU-side RGBA pixel storage. |
 | [`lib/engine/graphics/buffers/depth_buffer.dart`](lib/engine/graphics/buffers/depth_buffer.dart) | Per-pixel nearest-surface depth values. |
@@ -225,10 +234,13 @@ depth buffers, but it is not yet a general-purpose scene or graphics engine.
 
 The tests exercise the pipeline in layers:
 
-- [`mesh_test.dart`](test/mesh_test.dart): OBJ vertices, triangulation, and
-  positive/negative OBJ indices.
-- [`camera_transform_test.dart`](test/camera_transform_test.dart): model
-  transforms and camera projection.
+- [`mesh_test.dart`](test/mesh_test.dart): OBJ vertices, triangulation,
+  positive/negative OBJ indices, normalization, and mesh validation.
+- [`camera_test.dart`](test/camera_test.dart): camera projection and viewport
+  requirements.
+- [`transform3_test.dart`](test/transform3_test.dart): model transforms.
+- [`mesh_renderer_test.dart`](test/mesh_renderer_test.dart): mesh projection
+  through `MeshPipeline` and `Renderer.drawMesh`.
 - [`software_framebuffer_test.dart`](test/software_framebuffer_test.dart):
   pixel storage, depth testing, triangle filling, and frame clearing.
 - [`model_view_test.dart`](test/model_view_test.dart): actual mesh loading,

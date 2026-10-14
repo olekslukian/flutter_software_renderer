@@ -1,8 +1,7 @@
 import 'dart:ui';
 
-import 'graphics/renderer.dart';
+import 'package:flutter_software_renderer/engine/graphics/renderer.dart';
 
-/// Defines lifecycle and rendering hooks for engine-hosted game content.
 abstract class Game {
   Game({
     this.clearColor = const Color(0xFF000000),
@@ -10,21 +9,15 @@ abstract class Game {
     this.height = 240,
   });
 
-  /// The color used to clear each frame.
   Color clearColor;
 
-  /// The width of the game's software-rendered image in pixels.
   final int width;
 
-  /// The height of the game's software-rendered image in pixels.
   final int height;
 
-  /// Initializes game state before the first update or render.
   Future<void> initialize();
 
-  /// Advances game state by [deltaTime] seconds.
   void update(double deltaTime);
 
-  /// Submits the current game state through the engine-owned [renderer].
   void render(Renderer renderer);
 }

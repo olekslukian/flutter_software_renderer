@@ -12,11 +12,11 @@ the OBJ model described below.
 
 ## Rendering pipeline
 
-- `ModelViewDemo` loads indexed triangle geometry from an OBJ asset, centers
-  and scales it, and animates its transform.
-- Engine math and camera types apply model transforms and project vertices to
-  framebuffer coordinates and normalized depth.
-- `Renderer` submits projected triangles to the CPU triangle rasterizer.
+- `ModelViewDemo` loads indexed triangle geometry from an OBJ asset, normalizes
+  it with `Mesh.normalized()`, and animates its transform.
+- The `Camera` hierarchy (`PerspectiveCamera` today) and `MeshPipeline` project
+  vertices to framebuffer coordinates and normalized depth.
+- `Renderer.drawMesh` submits projected triangles to the CPU triangle rasterizer.
 - A per-pixel depth buffer ensures nearer fragments occlude farther surfaces.
 - `Engine` clears both buffers per frame and handles asynchronous conversion
   and presentation of framebuffer pixels as a Flutter image. It waits for game

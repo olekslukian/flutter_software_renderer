@@ -1,36 +1,72 @@
 import 'dart:ui';
 
-import 'buffers/depth_buffer.dart';
-import 'buffers/software_framebuffer.dart';
-import 'triangle_rasterizer.dart';
+import 'package:flutter_software_renderer/engine/graphics/buffers/depth_buffer.dart';
+import 'package:flutter_software_renderer/engine/graphics/buffers/software_framebuffer.dart';
+import 'package:flutter_software_renderer/engine/graphics/camera/camera.dart';
+import 'package:flutter_software_renderer/engine/graphics/mesh.dart';
+import 'package:flutter_software_renderer/engine/graphics/mesh_pipeline.dart';
+import 'package:flutter_software_renderer/engine/graphics/triangle_rasterizer.dart';
+import 'package:flutter_software_renderer/engine/math/transform3.dart';
 
-/// Coordinates CPU triangle rasterization into a color and depth buffer.
 class Renderer {
-  /// Creates a renderer targeting the engine-owned [framebuffer] and allocates
-  /// a matching depth buffer.
   Renderer(this.framebuffer)
     : depthBuffer = DepthBuffer(
         width: framebuffer.width,
         height: framebuffer.height,
       );
 
-  /// The color target into which submitted triangles are rasterized.
   final SoftwareFramebuffer framebuffer;
 
-  /// The per-pixel visibility buffer paired with [framebuffer].
   final DepthBuffer depthBuffer;
 
-  /// Clears color and depth state before the game submits a new frame.
+  final MeshPipeline _meshPipeline = MeshPipeline();
+
   void beginFrame() {
     framebuffer.clear();
     depthBuffer.clear();
   }
 
-  /// Rasterizes a projected triangle with normalized per-vertex depths.
-  ///
-  /// Coordinates are in framebuffer pixel space. Depths are in the range
-  /// `0.0..1.0`, where smaller values are nearer; fragments farther than the
-  /// value already stored at a pixel are discarded.
+  int drawMesh({
+    required Mesh mesh,
+    required Transform3 transform,
+    required Camera camera,
+    required Color color,
+  }) {
+    camera.configureViewport(framebuffer.width, framebuffer.height);
+    _meshPipeline.projectVertices(mesh, transform, camera);
+
+    final screenPositions = _meshPipeline.screenPositions;
+    final depths = _meshPipeline.depths;
+    final indices = mesh.indices;
+    var trianglesDrawn = 0;
+    for (var triangle = 0; triangle < indices.length; triangle += 3) {
+      final a = indices[triangle];
+      final b = indices[triangle + 1];
+      final c = indices[triangle + 2];
+      if (!_isWithinDepthRange(depths[a]) ||
+          !_isWithinDepthRange(depths[b]) ||
+          !_isWithinDepthRange(depths[c])) {
+        // Full clipping is a later pipeline stage; skip faces outside the
+        // camera's depth interval rather than passing invalid depths onward.
+        continue;
+      }
+      drawTriangle(
+        a: screenPositions[a],
+        b: screenPositions[b],
+        c: screenPositions[c],
+        depthA: depths[a],
+        depthB: depths[b],
+        depthC: depths[c],
+        color: color,
+      );
+      trianglesDrawn++;
+    }
+    return trianglesDrawn;
+  }
+
+  static bool _isWithinDepthRange(double depth) =>
+      depth.isFinite && depth >= 0.0 && depth <= 1.0;
+
   int drawTriangle({
     required Offset a,
     required Offset b,

@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import 'app/app.dart';
+import 'package:flutter_software_renderer/app/app.dart';
 
 void main() {
   runApp(const App());
