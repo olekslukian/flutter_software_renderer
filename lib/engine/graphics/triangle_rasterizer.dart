@@ -25,15 +25,23 @@ abstract class TriangleRasterizer {
     double depthC,
     Color color,
   ) {
-    if (framebuffer.width != depthBuffer.width ||
-        framebuffer.height != depthBuffer.height) {
-      throw ArgumentError(
-        'The framebuffer and depth buffer dimensions must match.',
-      );
-    }
-    _validateDepth(depthA);
-    _validateDepth(depthB);
-    _validateDepth(depthC);
+    assert(
+      framebuffer.width == depthBuffer.width &&
+          framebuffer.height == depthBuffer.height,
+      'The framebuffer and depth buffer dimensions must match.',
+    );
+    assert(
+      _isValidDepth(depthA),
+      'Depth A must be finite and between 0.0 and 1.0.',
+    );
+    assert(
+      _isValidDepth(depthB),
+      'Depth B must be finite and between 0.0 and 1.0.',
+    );
+    assert(
+      _isValidDepth(depthC),
+      'Depth C must be finite and between 0.0 and 1.0.',
+    );
     return _fill(
       framebuffer,
       depthBuffer,
@@ -112,15 +120,8 @@ abstract class TriangleRasterizer {
     return writtenPixels;
   }
 
-  static void _validateDepth(double depth) {
-    if (!depth.isFinite || depth < 0.0 || depth > 1.0) {
-      throw ArgumentError.value(
-        depth,
-        'depth',
-        'must be finite and between 0.0 and 1.0',
-      );
-    }
-  }
+  static bool _isValidDepth(double depth) =>
+      depth.isFinite && depth >= 0.0 && depth <= 1.0;
 
   static double _edge(Offset start, Offset end, Offset point) {
     return (end.dx - start.dx) * (point.dy - start.dy) -

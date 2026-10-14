@@ -1,12 +1,15 @@
 import 'dart:math' as math;
 
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_software_renderer/engine/errors/engine_exception.dart';
 import 'package:vector_math/vector_math_64.dart' as v64;
 
 class Mesh {
   Mesh({required this.vertices, required this.indices}) {
     _validate();
   }
+
+  Mesh._trusted({required this.vertices, required this.indices});
 
   factory Mesh.fromObj(String objText) {
     final parsedVertices = <v64.Vector3>[];
@@ -23,35 +26,56 @@ class Mesh {
       final header = parts[0];
       if (header == 'v') {
         if (parts.length < 4) {
-          throw FormatException('Invalid vertex at line ${lineIndex + 1}.');
+          throw MeshFormatException(
+            'Vertex needs three coordinates.',
+            line: lineIndex + 1,
+            token: line,
+          );
         }
-        parsedVertices.add(
-          v64.Vector3(
-            double.parse(parts[1]),
-            double.parse(parts[2]),
-            double.parse(parts[3]),
-          ),
-        );
+        final x = double.tryParse(parts[1]);
+        final y = double.tryParse(parts[2]);
+        final z = double.tryParse(parts[3]);
+        if (x == null || y == null || z == null) {
+          throw MeshFormatException(
+            'Vertex coordinate is not a number.',
+            line: lineIndex + 1,
+            token: line,
+          );
+        }
+        parsedVertices.add(v64.Vector3(x, y, z));
       } else if (header == 'f') {
         final faceIndices = <int>[];
         for (final part in parts.skip(1)) {
           if (part.startsWith('#')) {
             break;
           }
-          final objIndex = int.parse(part.split('/').first);
+          final objIndex = int.tryParse(part.split('/').first);
+          if (objIndex == null) {
+            throw MeshFormatException(
+              'Face index is not an integer.',
+              line: lineIndex + 1,
+              token: part,
+            );
+          }
           final vertexIndex = objIndex > 0
               ? objIndex - 1
               : parsedVertices.length + objIndex;
           if (vertexIndex < 0 || vertexIndex >= parsedVertices.length) {
-            throw FormatException(
-              'Face index $objIndex is out of range at line ${lineIndex + 1}.',
+            throw MeshFormatException(
+              'Face index is out of range.',
+              line: lineIndex + 1,
+              token: part,
             );
           }
           faceIndices.add(vertexIndex);
         }
 
         if (faceIndices.length < 3) {
-          throw FormatException('Invalid face at line ${lineIndex + 1}.');
+          throw MeshFormatException(
+            'Face needs at least three vertices.',
+            line: lineIndex + 1,
+            token: line,
+          );
         }
         for (var index = 1; index < faceIndices.length - 1; index++) {
           parsedIndices
@@ -63,8 +87,9 @@ class Mesh {
     }
 
     if (parsedVertices.isEmpty || parsedIndices.isEmpty) {
-      throw const FormatException(
+      throw const InvalidMeshException(
         'OBJ model contains no renderable triangles.',
+        issue: MeshIssue.noRenderableTriangles,
       );
     }
     return Mesh(vertices: parsedVertices, indices: parsedIndices);
@@ -108,14 +133,17 @@ class Mesh {
       math.max(maxY - minY, maxZ - minZ),
     );
     if (largestExtent == 0.0) {
-      throw ArgumentError('Mesh vertices must span a non-zero volume.');
+      throw const InvalidMeshException(
+        'Mesh vertices must span a non-zero volume.',
+        issue: MeshIssue.zeroVolume,
+      );
     }
 
     final centerX = (minX + maxX) / 2.0;
     final centerY = (minY + maxY) / 2.0;
     final centerZ = (minZ + maxZ) / 2.0;
     final scale = targetExtent / largestExtent;
-    return Mesh(
+    return Mesh._trusted(
       vertices: vertices
           .map(
             (vertex) => v64.Vector3(
@@ -131,19 +159,31 @@ class Mesh {
 
   void _validate() {
     if (vertices.isEmpty) {
-      throw ArgumentError('Mesh must contain at least one vertex.');
+      throw const InvalidMeshException(
+        'Mesh must contain at least one vertex.',
+        issue: MeshIssue.noVertices,
+      );
     }
     if (indices.length % 3 != 0) {
-      throw ArgumentError('Mesh indices must contain complete triangles.');
+      throw const InvalidMeshException(
+        'Mesh indices must contain complete triangles.',
+        issue: MeshIssue.incompleteTriangles,
+      );
     }
     for (final index in indices) {
       if (index < 0 || index >= vertices.length) {
-        throw ArgumentError.value(index, 'indices', 'is out of range');
+        throw InvalidMeshException(
+          'Mesh index $index is out of range.',
+          issue: MeshIssue.indexOutOfRange,
+        );
       }
     }
     for (final vertex in vertices) {
       if (!vertex.x.isFinite || !vertex.y.isFinite || !vertex.z.isFinite) {
-        throw ArgumentError('Mesh vertices must have finite coordinates.');
+        throw const InvalidMeshException(
+          'Mesh vertices must have finite coordinates.',
+          issue: MeshIssue.nonFiniteVertex,
+        );
       }
     }
   }

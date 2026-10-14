@@ -282,9 +282,9 @@ Place new code by responsibility, and keep a stage's inputs/outputs narrow.
 | Scene / entities | New `engine/` area owned by `Engine`, consumed by `Game` | Only when more than one game or object type needs it; update section 1 once real. |
 | Input | Captured at the Flutter host boundary, forwarded to `Engine`/`Game` through a plain Dart interface | Keep Flutter event types out of engine logic. |
 | Another backend (e.g. GPU, canvas) | A narrow interface the `Renderer` or `Engine` depends on, with Flutter implementations at the host boundary | See section 8 for current coupling. |
-| Performance work | Profile first; candidates in section 9 | Keep behavior-preserving changes separate from feature changes. |
+| Performance work | Profile first; candidates in section 10 | Keep behavior-preserving changes separate from feature changes. |
 
-Every behavior change comes with a test (section 10).
+Every behavior change comes with a test (section 11).
 
 ## 8. Boundaries and known seams
 
@@ -305,7 +305,55 @@ interfaces so another backend could be introduced later. Current reality:
 Rules: do not import `package:flutter/material.dart` into `graphics/`,
 `math/`, or `buffers/`; do not pass `BuildContext` below `EngineScreen`.
 
-## 9. Known limitations and tech debt
+## 9. Error handling and diagnostics
+
+Current implementation:
+
+- Typed exceptions in [errors/engine_exception.dart](../../lib/engine/errors/engine_exception.dart),
+  all `sealed` under `EngineException`: `MeshFormatException` (OBJ parse
+  errors, with line and token), `InvalidMeshException` (carries a `MeshIssue`
+  enum value, so callers branch on the enum rather than the message text), and
+  `ProjectionException` (a vertex whose clip-space `w` is zero or non-finite).
+- Exception role by kind:
+  - `ArgumentError`: caller bugs (bad FOV, clipping planes, viewport size,
+    `targetExtent`).
+  - `StateError`: lifecycle misuse (projecting before `configureViewport`).
+  - `EngineException` subclasses: bad data or input files.
+  - `assert` with a message: internal invariants on hot paths (rasterizer
+    depth and dimensions, `DepthBuffer.testAndSet`). These do not run in
+    release builds.
+- `MeshPipeline` catches `ProjectionException` per vertex, marks that vertex's
+  depth as `NaN`, and the depth filter drops only the affected triangles. The
+  frame continues. `Renderer.drawMesh` reports one warning per frame for
+  unprojectable vertices and one for triangles skipped by depth range.
+- Non-fatal reports flow through the `DiagnosticSink` interface
+  ([engine_diagnostic.dart](../../lib/engine/diagnostics/engine_diagnostic.dart)).
+  `FrameDiagnostics` collects up to 20 warnings per frame and forwards every
+  report to the outer sink. It is cleared at the start of each frame.
+- [LoggerDiagnosticSink](../../lib/engine/diagnostics/logger_diagnostic_sink.dart)
+  (engine layer, uses `package:logger`) is the default sink of `Engine`. It
+  writes warnings and errors with stack traces and rate-limits repeats of the
+  same phase and message to once per second. Tests inject a null or recording
+  sink instead.
+- `Engine` is the only error boundary. A failure in `initialize`, `render`, or
+  image conversion becomes an error `EngineDiagnostic` with its phase and
+  stack trace. It sets `renderError`, which `EngineScreen` displays as
+  `Render failed during <phase>: <message>`.
+- `EngineScreen` shows a warnings banner in debug builds only (`kDebugMode`).
+  Tap it to expand the list. Release builds show warnings only in the logger.
+
+Rules:
+
+- Throw the most specific type. Do not throw `Exception` or `StateError` for
+  data problems; add an `EngineException` subclass instead.
+- Catch only where the error can be handled or converted into a diagnostic.
+  Do not catch and swallow inside the rasterizer or buffers.
+- Use `(error, stackTrace)` in catch clauses at boundaries so the trace is kept.
+- Do not parse messages to classify errors; branch on the type or enum.
+- Do not add an `assert` where a real caller-facing check is needed, and do not
+  rely on an `assert` in code paths that must reject bad input in release.
+
+## 10. Known limitations and tech debt
 
 - One full-framebuffer `snapshot()` copy per frame, plus the copy made by
   `ImmutableBuffer`; frame budget is spent mostly in pure-Dart rasterization.
@@ -317,11 +365,14 @@ Rules: do not import `package:flutter/material.dart` into `graphics/`,
 - Everything runs on the UI isolate; no isolate or worker rendering.
 - `MeshPipeline` reallocates its projection lists only when the vertex count
   changes; a mesh swap with the same count reuses them.
+- `Camera.configureViewport` runs on every `drawMesh` call. It is per mesh, not
+  per pixel, so the cost is small, but it could move to a viewport-change
+  notification.
 - Triangles crossing the near plane are dropped by `drawMesh`, so models close
   to the camera can pop out.
 - `Engine` owns image conversion and scheduling together (see section 8).
 
-## 10. Testing and validation
+## 11. Testing and validation
 
 Run after any Dart change:
 
@@ -335,8 +386,8 @@ flutter test
 | [software_framebuffer_test.dart](../../test/software_framebuffer_test.dart) | Framebuffer pixel writes, bounds, clear; depth buffer; rasterizer winding/degenerate cases; `Renderer` order independence and per-frame clearing. |
 | [camera_test.dart](../../test/camera_test.dart) | `PerspectiveCamera` projection, viewport requirement, field-of-view and clipping-plane validation, a `Camera` subclass driven through the shared path. |
 | [transform3_test.dart](../../test/transform3_test.dart) | `Transform3` rotation/translation and `transformPoint`. |
-| [mesh_test.dart](../../test/mesh_test.dart) | OBJ triangulation, relative indices, out-of-range face rejection, `normalized()` centering and scale, rejection of empty, partial, non-finite, and zero-volume meshes. |
-| [mesh_renderer_test.dart](../../test/mesh_renderer_test.dart) | `MeshPipeline` projection and viewport requirement; `Renderer.drawMesh` pixel output and depth-range skipping. |
+| [mesh_test.dart](../../test/mesh_test.dart) | OBJ triangulation, relative indices, out-of-range face rejection as `MeshFormatException`, `normalized()` centering and scale, rejection of empty, partial, non-finite, and zero-volume meshes as `InvalidMeshException` with the matching `MeshIssue`, and `ArgumentError` for invalid `targetExtent`. |
+| [mesh_renderer_test.dart](../../test/mesh_renderer_test.dart) | `MeshPipeline` projection, viewport requirement, and per-vertex `ProjectionException` handling; `Renderer.drawMesh` pixel output, depth-range skipping, and the render-phase warning for unprojectable vertices. |
 | [widget_test.dart](../../test/widget_test.dart) | `EngineScreen` hosting `ModelViewDemo` with an injected `Mesh` and presenting a `RawImage` as time advances. |
 
 Keep rendering lifecycle behavior (init gate, coalescing, disposal, error
@@ -351,7 +402,7 @@ error, strict casts/inference. Do not add code comments or doc comments unless
 asked; when asked, explain a demo's purpose or a non-obvious rendering
 decision, not what the code literally does.
 
-## 11. Checklist for changes
+## 12. Checklist for changes
 
 - [ ] Code is in the right layer and imports only in the allowed direction
       (section 2).
@@ -359,7 +410,7 @@ decision, not what the code literally does.
 - [ ] Pixel format, screen space, and depth conventions are unchanged or this
       document is updated (section 5).
 - [ ] New async work checks `_disposed` and disposes native-backed objects.
-- [ ] Invalid inputs fail with specific exceptions.
+- [ ] Invalid inputs fail with specific typed exceptions (section 9).
 - [ ] Tests added or updated; `flutter analyze` has zero warnings and
       `flutter test` passes.
 - [ ] Docs distinguish implemented behavior from planned behavior.

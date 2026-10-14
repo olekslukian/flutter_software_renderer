@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter_software_renderer/engine/errors/engine_exception.dart';
 import 'package:flutter_software_renderer/engine/graphics/mesh.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math_64.dart' as v64;
@@ -27,7 +28,7 @@ v 1 0 0
 v 0 1 0
 f 1 2 4
 '''),
-      throwsFormatException,
+      throwsA(isA<MeshFormatException>()),
     );
   });
 
@@ -61,15 +62,15 @@ f 1 2 4
 
     expect(
       () => Mesh(vertices: const [], indices: const []),
-      throwsArgumentError,
+      throwsA(_invalidMesh(MeshIssue.noVertices)),
     );
     expect(
       () => Mesh(vertices: triangle, indices: const [0, 1]),
-      throwsArgumentError,
+      throwsA(_invalidMesh(MeshIssue.incompleteTriangles)),
     );
     expect(
       () => Mesh(vertices: triangle, indices: const [0, 1, 3]),
-      throwsArgumentError,
+      throwsA(_invalidMesh(MeshIssue.indexOutOfRange)),
     );
     expect(
       () => Mesh(
@@ -80,7 +81,7 @@ f 1 2 4
         ],
         indices: const [0, 1, 2],
       ),
-      throwsArgumentError,
+      throwsA(_invalidMesh(MeshIssue.nonFiniteVertex)),
     );
     expect(
       () => Mesh(
@@ -91,7 +92,27 @@ f 1 2 4
         ],
         indices: const [0, 1, 2],
       ).normalized(),
+      throwsA(_invalidMesh(MeshIssue.zeroVolume)),
+    );
+  });
+
+  test('ArgumentError is reserved for invalid caller arguments', () {
+    expect(
+      () => Mesh(
+        vertices: [
+          v64.Vector3.zero(),
+          v64.Vector3(1, 0, 0),
+          v64.Vector3(0, 1, 0),
+        ],
+        indices: const [0, 1, 2],
+      ).normalized(targetExtent: -1),
       throwsArgumentError,
     );
   });
 }
+
+Matcher _invalidMesh(MeshIssue issue) => isA<InvalidMeshException>().having(
+  (exception) => exception.issue,
+  'issue',
+  issue,
+);

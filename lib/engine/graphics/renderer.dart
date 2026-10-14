@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:flutter_software_renderer/engine/diagnostics/engine_diagnostic.dart';
 import 'package:flutter_software_renderer/engine/graphics/buffers/depth_buffer.dart';
 import 'package:flutter_software_renderer/engine/graphics/buffers/software_framebuffer.dart';
 import 'package:flutter_software_renderer/engine/graphics/camera/camera.dart';
@@ -9,15 +10,20 @@ import 'package:flutter_software_renderer/engine/graphics/triangle_rasterizer.da
 import 'package:flutter_software_renderer/engine/math/transform3.dart';
 
 class Renderer {
-  Renderer(this.framebuffer)
-    : depthBuffer = DepthBuffer(
-        width: framebuffer.width,
-        height: framebuffer.height,
-      );
+  Renderer(
+    this.framebuffer, {
+    DiagnosticSink diagnostics = const NullDiagnosticSink(),
+  }) : depthBuffer = DepthBuffer(
+         width: framebuffer.width,
+         height: framebuffer.height,
+       ),
+       _diagnostics = diagnostics;
 
   final SoftwareFramebuffer framebuffer;
 
   final DepthBuffer depthBuffer;
+
+  final DiagnosticSink _diagnostics;
 
   final MeshPipeline _meshPipeline = MeshPipeline();
 
@@ -33,12 +39,28 @@ class Renderer {
     required Color color,
   }) {
     camera.configureViewport(framebuffer.width, framebuffer.height);
-    _meshPipeline.projectVertices(mesh, transform, camera);
+    final unprojectableVertices = _meshPipeline.projectVertices(
+      mesh,
+      transform,
+      camera,
+    );
+    if (unprojectableVertices > 0) {
+      _diagnostics.report(
+        EngineDiagnostic(
+          severity: DiagnosticSeverity.warning,
+          phase: 'render',
+          message:
+              '$unprojectableVertices vertices could not be projected; '
+              'their triangles were skipped.',
+        ),
+      );
+    }
 
     final screenPositions = _meshPipeline.screenPositions;
     final depths = _meshPipeline.depths;
     final indices = mesh.indices;
     var trianglesDrawn = 0;
+    var trianglesSkipped = 0;
     for (var triangle = 0; triangle < indices.length; triangle += 3) {
       final a = indices[triangle];
       final b = indices[triangle + 1];
@@ -46,8 +68,7 @@ class Renderer {
       if (!_isWithinDepthRange(depths[a]) ||
           !_isWithinDepthRange(depths[b]) ||
           !_isWithinDepthRange(depths[c])) {
-        // Full clipping is a later pipeline stage; skip faces outside the
-        // camera's depth interval rather than passing invalid depths onward.
+        trianglesSkipped++;
         continue;
       }
       drawTriangle(
@@ -60,6 +81,17 @@ class Renderer {
         color: color,
       );
       trianglesDrawn++;
+    }
+    if (trianglesSkipped > 0 && unprojectableVertices == 0) {
+      _diagnostics.report(
+        EngineDiagnostic(
+          severity: DiagnosticSeverity.warning,
+          phase: 'render',
+          message:
+              '$trianglesSkipped triangles lie outside the camera depth range '
+              'and were skipped.',
+        ),
+      );
     }
     return trianglesDrawn;
   }

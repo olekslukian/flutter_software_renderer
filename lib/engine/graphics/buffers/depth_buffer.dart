@@ -22,13 +22,10 @@ class DepthBuffer {
   }
 
   bool testAndSet(int x, int y, double depth) {
-    if (!depth.isFinite || depth < 0.0 || depth > 1.0) {
-      throw ArgumentError.value(
-        depth,
-        'depth',
-        'must be finite and between 0.0 and 1.0',
-      );
-    }
+    assert(
+      depth.isFinite && depth >= 0.0 && depth <= 1.0,
+      'Depth must be finite and between 0.0 and 1.0.',
+    );
     if (!_contains(x, y)) {
       return false;
     }

@@ -3,22 +3,30 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_software_renderer/engine/diagnostics/engine_diagnostic.dart';
+import 'package:flutter_software_renderer/engine/diagnostics/logger_diagnostic_sink.dart';
 import 'package:flutter_software_renderer/engine/game.dart';
 import 'package:flutter_software_renderer/engine/graphics/buffers/software_framebuffer.dart';
 import 'package:flutter_software_renderer/engine/graphics/renderer.dart';
 
 class Engine extends ChangeNotifier {
-  Engine(this.game)
-    : renderer = Renderer(
+  Engine(Game game, {DiagnosticSink? logSink})
+    : this._(game, FrameDiagnostics(logSink ?? LoggerDiagnosticSink()));
+
+  Engine._(this.game, FrameDiagnostics frameDiagnostics)
+    : _frameDiagnostics = frameDiagnostics,
+      renderer = Renderer(
         SoftwareFramebuffer(
           width: game.width,
           height: game.height,
           clearColor: game.clearColor,
         ),
+        diagnostics: frameDiagnostics,
       );
 
   final Game game;
   final Renderer renderer;
+  final FrameDiagnostics _frameDiagnostics;
   SoftwareFramebuffer get framebuffer => renderer.framebuffer;
 
   ui.Image? _image;
@@ -27,11 +35,13 @@ class Engine extends ChangeNotifier {
   bool _initializationInProgress = false;
   bool _initialized = false;
   bool _disposed = false;
-  Object? renderError;
+  EngineDiagnostic? renderError;
 
   Color get clearColor => game.clearColor;
 
   ui.Image? get image => _image;
+
+  List<EngineDiagnostic> get warnings => _frameDiagnostics.warnings;
 
   Future<void> initialize() async {
     if (_disposed || _initialized || _initializationInProgress) {
@@ -45,10 +55,9 @@ class Engine extends ChangeNotifier {
       }
       _initialized = true;
       _requestFrame();
-    } catch (error) {
+    } catch (error, stackTrace) {
       if (!_disposed) {
-        renderError = error;
-        notifyListeners();
+        _fail('initialize', error, stackTrace);
       }
     } finally {
       _initializationInProgress = false;
@@ -72,18 +81,31 @@ class Engine extends ChangeNotifier {
       return;
     }
 
+    _frameDiagnostics.clear();
     try {
       renderer.beginFrame();
       game.render(renderer);
-    } catch (error) {
-      renderError = error;
-      notifyListeners();
+    } catch (error, stackTrace) {
+      _fail('render', error, stackTrace);
       return;
     }
     final pixels = framebuffer.snapshot();
     _conversionInProgress = true;
     renderError = null;
     unawaited(_convertToImage(pixels));
+  }
+
+  void _fail(String phase, Object error, StackTrace stackTrace) {
+    final diagnostic = EngineDiagnostic(
+      severity: DiagnosticSeverity.error,
+      phase: phase,
+      message: error.toString(),
+      error: error,
+      stackTrace: stackTrace,
+    );
+    renderError = diagnostic;
+    _frameDiagnostics.report(diagnostic);
+    notifyListeners();
   }
 
   Future<void> _convertToImage(Uint8List pixels) async {
@@ -110,10 +132,9 @@ class Engine extends ChangeNotifier {
         decodedImage = null;
         notifyListeners();
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
       if (!_disposed) {
-        renderError = error;
-        notifyListeners();
+        _fail('convert', error, stackTrace);
       }
     } finally {
       decodedImage?.dispose();

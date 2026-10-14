@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:flutter_software_renderer/engine/errors/engine_exception.dart';
 import 'package:vector_math/vector_math_64.dart' as v64;
 
 abstract class Camera {
@@ -67,7 +68,9 @@ abstract class Camera {
       throw StateError('Configure the camera viewport before projecting.');
     }
     if (clipPosition.w == 0.0 || !clipPosition.w.isFinite) {
-      throw StateError('The world position cannot be projected.');
+      throw const ProjectionException(
+        'Clip-space w is zero or non-finite; the vertex cannot be projected.',
+      );
     }
 
     final inverseW = 1.0 / clipPosition.w;
