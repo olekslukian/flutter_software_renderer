@@ -4,8 +4,6 @@ Reference for people and coding agents working on this repository. It answers:
 what exists today, who owns what, which rules keep the layers clean, and where
 new code should go.
 
-- For a narrative walkthrough of one frame, read
-  [MODEL_RENDERING_GUIDE.md](./MODEL_RENDERING_GUIDE.md).
 - For working rules (mentor mode, no comments, validation commands), read
   [copilot-instructions.md](../copilot-instructions.md).
 - This document is the source of truth for structure, ownership, and

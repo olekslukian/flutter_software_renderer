@@ -23,7 +23,9 @@ test/               # Tests for the engine and current game
 
 The current files under `engine/` and `app/` are an intentional starting scaffold; do not perform a broad directory migration just to match this layout. The current game lives under `app/game/`; do not introduce a separate `games/` directory unless the project grows multiple games and the separation becomes useful. Add subfolders only when code has distinct responsibilities and the split improves navigation. Keep reusable rendering logic in the engine and cube-specific setup and content with the current game. Keep Flutter widgets and Flutter-specific canvas integration at the host boundary; keep core engine logic dependent on narrow interfaces so a different rendering backend can be introduced later.
 
-For detailed layer rules, component ownership, frame lifecycle, rendering conventions, and extension guidance, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+If user asking for feature planning and explicitly asks to analyze project architecture, then see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed layer rules, component ownership, frame lifecycle, rendering conventions, and extension guidance. After changes in project architecture, this document should be updated to reflect the new structure and rules.
+
+Do not read files in `.github/guides/` by default. Those guides are written for people onboarding to the project, and loading them only adds context bloat. Read one only when the user explicitly asks you to, or asks for the guide to be updated.
 
 When explaining architecture changes, distinguish the current implementation from planned capabilities. In particular, do not describe the renderer as owning rasterization, buffers, or a scene system until those are implemented.
 
