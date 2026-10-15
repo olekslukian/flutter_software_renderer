@@ -2,7 +2,8 @@
 
 This is a planning document for people. It explains **what we are missing, why
 each piece matters, and in what order to build it**. It deliberately contains
-no implementation plan; each phase gets its own design when we start it.
+no implementation plan; each phase gets its own design when we start it
+(Phase 0's is [PHASE_0_PLAN.md](./PHASE_0_PLAN.md)).
 
 - Current structure and rules: [ARCHITECTURE.md](./ARCHITECTURE.md). That
   document says what exists *today*; this one says where we are going.
@@ -85,7 +86,7 @@ existing one, or builds the game on top.
 
 | # | Phase | Why it exists | Status |
 | --- | --- | --- | --- |
-| 0 | Foundations and measurement | Know our speed; fix the known slow spots before building on them | Not started |
+| 0 | Foundations and measurement | Know our speed; fix the known slow spots before building on them | Planned ([plan](./PHASE_0_PLAN.md), steps 0 to 11) |
 | 1 | Correct geometry | Walking close to walls must not break the image | Not started |
 | 2 | Surface data and correct interpolation | Textures and lighting need per-vertex data that interpolates correctly | Not started |
 | 3 | Textures | Walls and enemies need to look like something | Not started |
@@ -120,20 +121,33 @@ slow spots: per-pixel object allocation, boxed `List<double>` depth storage,
 color decoding on every pixel write, a full-image copy per frame, and a
 bounding-box scan that recomputes everything per pixel.
 
-**What we will do.**
+**What we will do.** Detailed steps are in
+[PHASE_0_PLAN.md](./PHASE_0_PLAN.md).
 
+- **Make the engine Flutter-free:** replace `Color`/`Offset` with an
+  engine-owned `Color32` and plain doubles, remove asset loading from the
+  engine, and split the Flutter-specific image presentation out of `Engine`.
+  The engine becomes a pure Dart package (`software_engine`) and the Flutter
+  host a second package (`software_engine_flutter`), so the compiler enforces
+  the boundary and the app holds only the game.
+- **Dart benchmark suite:** plain `dart run` / AOT-compiled scripts with
+  deterministic reference scenes, median/p95 timings and JSON output with a
+  framebuffer hash. This is the baseline the Rust port (Phase 5) is compared
+  against.
 - Define a performance budget (section 1) and a repeatable way to measure
-  frame time, split into update, render, and presenting the image.
+  frame time, split into update, render, and presenting the image (the host
+  measures presenting, which is also how phones are measured).
 - Fix the cheap, known inefficiencies in the inner loop so later features are
-  measured against a sane baseline.
+  measured against a sane baseline. These come *after* the baseline is
+  recorded, one measured change at a time.
 - Decide on timing rules: a fixed simulation step with a variable render rate,
   so gameplay behaves the same at any frame rate.
 - Add a small set of reference scenes and "known-good image" tests, so we can
   tell when a change (or the Rust port) alters the picture.
 
-**Outcome.** A number for "ms per frame" on our reference scene on each
-platform class (desktop and phone), and a test harness that can compare
-images.
+**Outcome.** A Flutter-free engine package, a committed benchmark baseline, a
+number for "ms per frame" on our reference scene on each platform class
+(desktop and phone), and a test harness that can compare images.
 
 **Primer: why the inner loop dominates.** A mesh has hundreds of triangles,
 but a screen has tens of thousands of pixels. Work per pixel is repeated

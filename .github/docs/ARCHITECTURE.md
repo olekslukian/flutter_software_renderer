@@ -104,7 +104,9 @@ Hard rules:
    `Engine`, or Flutter widgets.
 4. Do not add a `games/` directory, broad migrations, or extra folders until a
    split clearly improves navigation. The current layout is an intentional
-   small scaffold.
+   small scaffold. The one planned exception is the Phase 0 extraction of the
+   engine into a pure Dart package; see [PHASE_0_PLAN.md](./PHASE_0_PLAN.md).
+   This document describes the pre-migration layout until that plan lands.
 
 ## 3. Components and ownership
 
