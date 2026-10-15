@@ -27,6 +27,8 @@ If user asking for feature planning and explicitly asks to analyze project archi
 
 Do not read files in `.github/guides/` by default. Those guides are written for people onboarding to the project, and loading them only adds context bloat. Read one only when the user explicitly asks you to, or asks for the guide to be updated.
 
+Do not read [docs/ROADMAP.md](docs/ROADMAP.md) by default. It is a human-oriented planning document for the long-term game goal (phases, rationale, open decisions). Read it only when the user explicitly asks about the roadmap, project planning, or next steps, or asks for it to be updated. When a roadmap phase is completed, update its status in that file.
+
 When explaining architecture changes, distinguish the current implementation from planned capabilities. In particular, do not describe the renderer as owning rasterization, buffers, or a scene system until those are implemented.
 
 ## Validation
