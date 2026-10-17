@@ -302,6 +302,35 @@ file. Every later change is judged against this file. Phone numbers come from
 the host overlay (step 5) on a profile build, recorded by hand in the same
 format.
 
+## Progress: Part A done, stopped for review
+
+Steps 0 to 6 are implemented in the working tree and **not committed** (as requested). Part B (steps 7 to 11) is not started. [ARCHITECTURE.md](./ARCHITECTURE.md), [copilot-instructions.md](../copilot-instructions.md) and [ROADMAP.md](./ROADMAP.md) are unchanged; their updates belong to step 11.
+
+Validation at the stop point (Flutter 3.32.5, Dart 3.8.1):
+
+- `packages/software_engine`: `dart analyze` clean, `dart test` 48 passing. This includes the step 0 characterization hashes, which were asserted after every substep.
+- `packages/software_engine_flutter`: `flutter analyze` clean, `flutter test` 6 passing.
+- App: `flutter analyze` clean, `flutter test` 1 passing (smoke test with the real demo).
+- `dart compile exe benchmark/run_all.dart` succeeds. `grep -rn "dart:ui\|package:flutter/" packages/software_engine` is empty.
+
+Step notes and deviations:
+
+- **Step 0:** A throwaway spike confirmed `dart pub get`, `dart run`, and `dart compile exe` in a pure package, and `flutter analyze`/`flutter test` in an app that consumes it by path. Path dependencies were chosen; no workspace. Characterization hashes (FNV-1a of `snapshot()`, angle = frame × 0.05 rad): frame 1 `0x8ab934b5`, 2 `0xdb3be0c5`, 3 `0x1d36fda9`, 10 `0x0a7d63a5`, 40 `0x04a18a65`, 90 `0x10300cc5`.
+- **Steps 1a to 1d:** As planned. The framebuffer stores RGBA bytes through a `Uint32List` view on little-endian hosts (`Color32` word `0xAABBGGRR`). `Engine` is pure; `EnginePresenter` owns `ui.Image` and frame coalescing.
+- **Step 2:** `vector_math` is pinned to 2.1.4 in the new package lock, to match the app lock. 2.3.0 deprecates `translate` and `scale` in `transform3.dart`. Migrating those calls is a follow-up outside Phase 0. `software_engine` uses `lints/recommended` with the project rule list copied and Flutter-only rules removed. `software_engine_flutter` includes the root analysis options by relative path. The `App` widget was folded into `lib/main.dart`.
+- **Step 3:** Testing support lives in `lib/testing/` (`FileAssetLoader`, reference scenes, FNV hash, benchmark runner and cases). Engine tests use `package:test`. The host widget test moved to `software_engine_flutter/test/`.
+- **Step 4:** Entry points are thin: `benchmark/micro_benchmark.dart`, `benchmark/frame_benchmark.dart`, `benchmark/run_all.dart`. The cases live in `lib/testing/` so entry points use package imports only. A result's hash is the framebuffer after one iteration from a fresh target, so `frame_penger` equals the step 0 frame-1 hash. `run_all` takes `--machine=...` and writes `benchmark/results/run_all.json`, which is git-ignored. The README documents the commands.
+- **Step 5:** `Engine(clock:)` and `EnginePresenter(clock:)` are injectable. The overlay shows when `!kReleaseMode`, not only in debug builds, so profile builds can show the phone numbers from step 6. This is a deliberate change from "debug-only".
+- **Step 6:** Baseline: `packages/software_engine/benchmark/baselines/macos-arm64-apple-m3-pro.json` (Apple M3 Pro, macOS 26.7.1, Dart 3.8.1 AOT, one run).
+
+Open points for review before Part B:
+
+1. **Phone rows are not measured** (skipped as requested). Add them to the baseline by hand from a profile build of the host overlay, in the same format.
+2. **Timer resolution:** `triangle_fill_small` has a 0 µs median, and `project_vertices` is about 6 µs. Micro cases must batch several calls per timed sample before they are useful for Part B comparisons.
+3. **Overdraw variance:** min 709 µs, p95 2426 µs in one run. Use more iterations or a quieter machine before applying the 5% rule in step 10.
+4. **Docs:** step 11 still needs to update ARCHITECTURE.md, the copilot-instructions layout block and validation list, and ROADMAP.md.
+5. **Commits:** nothing is committed. One commit per step, with the Co-authored-by trailer, is still the intended history.
+
 ## Part B: make it fast and trustworthy
 
 ### Step 7: Performance budget

@@ -9,7 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  logger: ^2.8.0
+  software_engine:
+    path: packages/software_engine
+  software_engine_flutter:
+    path: packages/software_engine_flutter
   vector_math: ^2.1.4
 
 dev_dependencies:

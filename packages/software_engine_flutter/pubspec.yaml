@@ -1,0 +1,18 @@
+name: software_engine_flutter
+description: Flutter host for the software_engine package.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  software_engine:
+    path: ../software_engine
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+  flutter_test:
+    sdk: flutter
